@@ -1,0 +1,6 @@
+*.o
+*.so
+*.sym
+*.tmp
+*.out
+*.ver
