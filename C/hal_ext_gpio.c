@@ -112,7 +112,6 @@ static __inline__ void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t val
 static __inline__ void bcm2835_gpio_set(uint8_t pin)
 {
   
-  rtapi_print("bcm2835_gpio_set %d\n", pin);
   volatile uint32_t* paddr = gpio + BCM2835_GPSET0/4 + pin/32;
   uint8_t shift = pin % 32;
   bcm2835_peri_write(paddr, 1 << shift);
@@ -324,14 +323,12 @@ int rtapi_app_main(void)
 	return -1;
     }
 
-    rtapi_print("npins %d\n", npins);
     for (n = 0; n < npins; n++) {
       if (exclude_map & RTAPI_BIT(n)) {
         continue;
       }
       pinno = pins[n];
       if (dir_map & RTAPI_BIT(n)) {
-        rtapi_print("BIT %d  pinno %d\n", n, pinno);
         bcm2835_gpio_fsel(gpios[n], BCM2835_GPIO_FSEL_OUTP);
         if ((retval = hal_pin_bit_newf(HAL_IN, &port_data[n], comp_id, "%s.pin-%02d-out", hal_id, pinno)) < 0) {
           break;
