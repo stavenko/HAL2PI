@@ -79,6 +79,8 @@ static unsigned exclude_map;
 static int comp_id;		/* component ID */
 static unsigned char *pins, *gpios;
 hal_bit_t **port_data;
+hal_float_t **port_float_data;
+float prev_spindle_speed = 0.0;
 
 static void write_port(void *arg, long period);
 static void read_port(void *arg, long period);
@@ -282,6 +284,8 @@ int rtapi_app_main(void)
 	return -EINVAL;
     }
     port_data = hal_malloc(npins * sizeof(void *));
+    port_float_data = hal_malloc(1 * sizeof(void *));
+    port_float_data[0] = 0;
     if (port_data == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "HAL_PI_GPIO: ERROR: hal_malloc() failed\n");
@@ -345,14 +349,19 @@ int rtapi_app_main(void)
       }
     }
     if (retval < 0) {
-      rtapi_print("Below zero\n");
       rtapi_print_msg(RTAPI_MSG_ERR,
 		      "HAL_PI_GPIO: ERROR: pin %d export failed with err=%i\n",
 		      n,retval);
       hal_exit(comp_id);
       return -1;
     }
-    rtapi_print("move on\n");
+    rtapi_print("publish spindle port\n");
+    char sp[strlen(hal_id) + strlen("spindle_speed") + 1];
+    sprintf(sp, "%s.spindle_speed", hal_id);
+    if ((retval = hal_pin_float_new(sp, HAL_IN, &port_float_data[0], comp_id )) < 0) {
+      rtapi_print_msg(RTAPI_MSG_ERR, "HAL_PI_GPIO: ERROR: Failed to register spindle_speed pin\n");
+      return -1; 
+    }
 
     char write_buffer[strlen(hal_id) + 7];
     sprintf(write_buffer, "%s.write", hal_id);
@@ -369,7 +378,6 @@ int rtapi_app_main(void)
 
     retval = hal_export_funct(read_buffer, read_port, 0, 0, 0, comp_id); 
     if (retval < 0) {
-      rtapi_print("failed read\n");
       rtapi_print_msg(RTAPI_MSG_ERR, "HAL_PI_GPIO: ERROR: read funct export failed\n");
       hal_exit(comp_id);
       return -1;
@@ -415,5 +423,9 @@ static void read_port(void *arg, long period)
   for (n = 0; n < npins; n++) {
     if ((~dir_map & RTAPI_BIT(n)) && (~exclude_map & RTAPI_BIT(n)))
       *port_data[n] = bcm2835_gpio_lev(gpios[n]);
+  }
+  if (*port_float_data[0] != prev_spindle_speed) {
+    rtapi_print("spindle speed value %f (%f)\n", *port_float_data[0], prev_spindle_speed);
+    prev_spindle_speed = *port_float_data[0];
   }
 }
